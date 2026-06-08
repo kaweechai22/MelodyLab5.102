@@ -354,38 +354,55 @@ function drawLongitudinalAnnotations(ctx, x0, x, yBase){
 
 
 function drawLongitudinalFinal(ctx, c, p, w, h){
-  const pad = 42;
-  const top = 112;
-  const rows = 4;
-  const rowGap = 22;       // final: rows closer together
-  const r = 7.5;
-  const centerY = top + 128;
-  const xMin = pad;
-  const xMax = w - pad;
-  const y0 = centerY - rowGap * 1.5;
-  const phase = c.t * p.speed * 2.1;
-  const ampPx = 22 * p.A;
-  const spacingBase = 29;
-  const k = 2 * Math.PI / 310;
+  ctx.clearRect(0,0,w,h);
+  const bg=ctx.createLinearGradient(0,0,w,h);
+  bg.addColorStop(0,"#020817");
+  bg.addColorStop(1,"#08152b");
+  ctx.fillStyle=bg;
+  ctx.fillRect(0,0,w,h);
 
-  // Background subtle compression / rarefaction bands
-  const bands = [
-    {x:pad+42, col:"rgba(34,211,238,.13)"},
-    {x:pad+205, col:"rgba(168,85,247,.13)"},
-    {x:pad+370, col:"rgba(34,211,238,.12)"},
-    {x:pad+560, col:"rgba(168,85,247,.13)"},
-    {x:pad+760, col:"rgba(34,211,238,.12)"},
-  ];
-  bands.forEach(b=>{
-    const g=ctx.createLinearGradient(b.x-42,0,b.x+42,0);
+  // subtle grid
+  ctx.strokeStyle="rgba(148,163,184,.10)";
+  ctx.lineWidth=1;
+  for(let x=0;x<w;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,h);ctx.stroke();}
+  for(let y=0;y<h;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();}
+
+  const pad = 44;
+  const rows = 4;
+  const rowGap = 18; // closer rows
+  const r = 7;
+  const topBandY = 116;
+  const centerY = topBandY + 112;
+  const y0 = centerY - rowGap * 1.5;
+  const xMin = pad + 24;
+  const xMax = w - pad - 24;
+  const ampPx = 22 * p.A;
+  const baseGap = 28;
+  const k = 2 * Math.PI / 280;
+  const phase = vizState.t * 0.11 * p.speed;
+  const eqX = w * 0.50;
+  const obsBaseX = eqX + 150;
+  let obsX = obsBaseX;
+  let obsY = y0 + rowGap;
+
+  // compression / rarefaction glow bands
+  const bandCenters=[xMin+70,xMin+245,xMin+430,xMin+620,xMin+810];
+  bandCenters.forEach((bx,i)=>{
+    const g=ctx.createLinearGradient(bx-46,0,bx+46,0);
+    const col=i%2===0?"rgba(34,211,238,.11)":"rgba(168,85,247,.11)";
     g.addColorStop(0,"rgba(0,0,0,0)");
-    g.addColorStop(.5,b.col);
+    g.addColorStop(.5,col);
     g.addColorStop(1,"rgba(0,0,0,0)");
     ctx.fillStyle=g;
-    ctx.fillRect(b.x-50,82,100,260);
+    ctx.fillRect(bx-55,88,110,250);
   });
 
-  // Wave propagation arrow
+  // title
+  ctx.fillStyle="#cfe9ff";
+  ctx.font="20px Sarabun, system-ui, sans-serif";
+  ctx.fillText("Longitudinal Wave", 24, 36);
+
+  // wave propagation arrow
   ctx.save();
   ctx.strokeStyle="rgba(34,211,238,.95)";
   ctx.fillStyle="rgba(34,211,238,.95)";
@@ -405,148 +422,113 @@ function drawLongitudinalFinal(ctx, c, p, w, h){
   ctx.fillText("ทิศทางการเคลื่อนที่ของคลื่น", w*0.51, 50);
   ctx.restore();
 
-  // Particles: 4 rows, compact band, longitudinal spacing by displacement field
-  const x0s = [];
-  for(let x=xMin; x<=xMax; x += spacingBase){
-    x0s.push(x);
-  }
-  const eqX = w * 0.51;
-  let obsX0 = eqX + 150;
-  let obsX = obsX0;
-  let obsY = y0 + rowGap; // second row reference particle
-
+  // particles in 4 close rows
+  const baseXs=[];
+  for(let x=xMin;x<=xMax;x+=baseGap) baseXs.push(x);
   for(let row=0; row<rows; row++){
     const y = y0 + row*rowGap;
-    for(let i=0; i<x0s.length; i++){
-      const base = x0s[i];
-      const disp = ampPx * Math.sin(k*(base-eqX) - phase);
-      const x = base + disp;
-
-      // Reference particle: nearest to obsX0 on row 1
-      const isObs = row === 1 && Math.abs(base - obsX0) < spacingBase/2;
-      if(isObs){ obsX = x; obsY = y; }
-
-      const grd = ctx.createRadialGradient(x-3,y-3,1,x,y,r+3);
+    for(let i=0;i<baseXs.length;i++){
+      const base=baseXs[i];
+      const disp=ampPx*Math.sin(k*(base-eqX)-phase);
+      const x=base+disp;
+      const isObs = row===1 && Math.abs(base-obsBaseX)<baseGap/2;
+      if(isObs){obsX=x; obsY=y;}
+      const grd=ctx.createRadialGradient(x-2.5,y-2.5,1,x,y,isObs?r+2:r+2);
       if(isObs){
         grd.addColorStop(0,"#ffd7e6");
         grd.addColorStop(.45,"#ff4d8d");
         grd.addColorStop(1,"rgba(255,77,141,.24)");
       }else{
-        grd.addColorStop(0,"#cfffff");
-        grd.addColorStop(.42,"#31cfff");
-        grd.addColorStop(1,"rgba(31,111,255,.35)");
+        grd.addColorStop(0,"#d8ffff");
+        grd.addColorStop(.45,"#34d8ff");
+        grd.addColorStop(1,"rgba(31,111,255,.30)");
       }
-      ctx.fillStyle = grd;
+      ctx.fillStyle=grd;
       ctx.beginPath();
       ctx.arc(x,y,isObs?r+1.5:r,0,Math.PI*2);
       ctx.fill();
     }
   }
 
-  // Equilibrium and amplitude markers
+  // equilibrium line and labels
   ctx.save();
-  ctx.strokeStyle="rgba(255,255,255,.74)";
+  ctx.strokeStyle="rgba(255,255,255,.72)";
   ctx.setLineDash([8,8]);
   ctx.lineWidth=2;
   ctx.beginPath();
-  ctx.moveTo(eqX, 95);
-  ctx.lineTo(eqX, y0 + rowGap*3 + 35);
+  ctx.moveTo(eqX, 94);
+  ctx.lineTo(eqX, y0 + rowGap*3 + 26);
   ctx.stroke();
   ctx.setLineDash([]);
-  ctx.fillStyle="rgba(255,255,255,.92)";
+  ctx.fillStyle="rgba(255,255,255,.95)";
   ctx.textAlign="center";
   ctx.font="16px Sarabun, system-ui, sans-serif";
   ctx.fillText("ตำแหน่งสมดุล", eqX, 98);
-  ctx.fillText("(สมดุล)", eqX, 122);
+  ctx.fillText("(สมดุล)", eqX, 120);
 
-  // amplitude A horizontal from equilibrium to displaced observation particle
-  const aY = obsY - 48;
+  // amplitude arrow horizontal
+  const aY = obsY - 44;
   ctx.strokeStyle="#ff4d8d";
   ctx.fillStyle="#ff4d8d";
   ctx.lineWidth=3;
+  ctx.beginPath(); ctx.moveTo(eqX,aY); ctx.lineTo(obsX,aY); ctx.stroke();
+  const ah=8;
   ctx.beginPath();
-  ctx.moveTo(eqX, aY);
-  ctx.lineTo(obsX, aY);
-  ctx.stroke();
-  const ah = 8;
-  // arrow heads both ends
-  ctx.beginPath();
-  ctx.moveTo(eqX, aY);
-  ctx.lineTo(eqX+ah, aY-ah);
-  ctx.moveTo(eqX, aY);
-  ctx.lineTo(eqX+ah, aY+ah);
-  ctx.moveTo(obsX, aY);
-  ctx.lineTo(obsX-ah, aY-ah);
-  ctx.moveTo(obsX, aY);
-  ctx.lineTo(obsX-ah, aY+ah);
+  ctx.moveTo(eqX,aY); ctx.lineTo(eqX+ah,aY-ah); ctx.moveTo(eqX,aY); ctx.lineTo(eqX+ah,aY+ah);
+  ctx.moveTo(obsX,aY); ctx.lineTo(obsX-ah,aY-ah); ctx.moveTo(obsX,aY); ctx.lineTo(obsX-ah,aY+ah);
   ctx.stroke();
   ctx.font="bold 28px Sarabun, system-ui, sans-serif";
   ctx.fillText("A", (eqX+obsX)/2, aY-12);
 
-  // dashed line to observation particle
-  ctx.strokeStyle="rgba(255,255,255,.65)";
+  // observation guide line and arrows to reference particle
+  ctx.strokeStyle="rgba(255,255,255,.62)";
   ctx.setLineDash([6,7]);
-  ctx.beginPath();
-  ctx.moveTo(obsX, 126);
-  ctx.lineTo(obsX, obsY+10);
-  ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(obsX,126); ctx.lineTo(obsX,obsY+10); ctx.stroke();
   ctx.setLineDash([]);
-
-  // particle vibration arrow
-  const vibY = y0 + rows*rowGap + 48;
-  ctx.strokeStyle="#ff3f88";
-  ctx.fillStyle="#ff3f88";
-  ctx.lineWidth=4;
   ctx.beginPath();
-  ctx.moveTo(eqX-78, vibY);
-  ctx.lineTo(eqX+78, vibY);
-  ctx.stroke();
+  ctx.moveTo(obsX+28, obsY-20); ctx.lineTo(obsX+10, obsY-6); ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(eqX-78, vibY);
-  ctx.lineTo(eqX-58, vibY-12);
-  ctx.lineTo(eqX-58, vibY+12);
-  ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(eqX+78, vibY);
-  ctx.lineTo(eqX+58, vibY-12);
-  ctx.lineTo(eqX+58, vibY+12);
-  ctx.closePath();
-  ctx.fill();
+  ctx.moveTo(obsX+28, obsY+22); ctx.lineTo(obsX+10, obsY+8); ctx.stroke();
   ctx.fillStyle="rgba(255,255,255,.92)";
-  ctx.font="17px Sarabun, system-ui, sans-serif";
-  ctx.fillText("การสั่นของอนุภาค", eqX, vibY+40);
-  ctx.fillText("(ซ้าย – ขวา)", eqX, vibY+64);
+  ctx.textAlign="left";
+  ctx.font="15px Sarabun, system-ui, sans-serif";
+  ctx.fillText("อนุภาคอ้างอิงสำหรับสังเกต", obsX+34, obsY-22);
   ctx.restore();
 
-  // x axis: no numeric labels, tick marks only, x at end
+  // particle vibration arrow
+  const vibY = y0 + rows*rowGap + 44;
+  ctx.save();
+  ctx.strokeStyle="#ff4d8d";
+  ctx.fillStyle="#ff4d8d";
+  ctx.lineWidth=4;
+  ctx.beginPath(); ctx.moveTo(eqX-80,vibY); ctx.lineTo(eqX+80,vibY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(eqX-80,vibY); ctx.lineTo(eqX-60,vibY-12); ctx.lineTo(eqX-60,vibY+12); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(eqX+80,vibY); ctx.lineTo(eqX+60,vibY-12); ctx.lineTo(eqX+60,vibY+12); ctx.closePath(); ctx.fill();
+  ctx.fillStyle="rgba(255,255,255,.92)";
+  ctx.textAlign="center";
+  ctx.font="17px Sarabun, system-ui, sans-serif";
+  ctx.fillText("การสั่นของอนุภาค", eqX, vibY+36);
+  ctx.fillText("(ซ้าย – ขวา)", eqX, vibY+58);
+  ctx.restore();
+
+  // x axis without numbers / lambda labels
   ctx.save();
   const axisY = h - 88;
   ctx.strokeStyle="rgba(255,245,220,.92)";
   ctx.fillStyle="rgba(255,255,255,.92)";
   ctx.lineWidth=2;
+  ctx.beginPath(); ctx.moveTo(pad+25,axisY); ctx.lineTo(w-pad-10,axisY); ctx.stroke();
   ctx.beginPath();
-  ctx.moveTo(pad+25, axisY);
-  ctx.lineTo(w-pad-10, axisY);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(w-pad-10, axisY);
-  ctx.lineTo(w-pad-22, axisY-8);
-  ctx.moveTo(w-pad-10, axisY);
-  ctx.lineTo(w-pad-22, axisY+8);
+  ctx.moveTo(w-pad-10,axisY); ctx.lineTo(w-pad-22,axisY-8);
+  ctx.moveTo(w-pad-10,axisY); ctx.lineTo(w-pad-22,axisY+8);
   ctx.stroke();
   for(let i=0;i<7;i++){
-    const tx = pad+70 + i*((w-2*pad-150)/6);
-    ctx.beginPath();
-    ctx.moveTo(tx, axisY-12);
-    ctx.lineTo(tx, axisY+12);
-    ctx.stroke();
+    const tx=pad+70+i*((w-2*pad-150)/6);
+    ctx.beginPath(); ctx.moveTo(tx,axisY-12); ctx.lineTo(tx,axisY+12); ctx.stroke();
   }
   ctx.font="22px Sarabun, system-ui, sans-serif";
   ctx.fillText("x", w-pad-4, axisY+28);
   ctx.restore();
-
-  // No legend dots under x-axis in final version.
 }
 
 
@@ -562,6 +544,13 @@ function drawVisualizer(){
   const W=c.width,H=c.height, mid=H/2;
   const phase=vizState.t*0.055*p.speed;
   const mode=vizState.mode;
+
+  if(mode==="longitudinal"){
+    drawLongitudinalFinal(ctx,c,p,W,H);
+    if(vizState.running) vizState.t += 1;
+    vizState.raf=requestAnimationFrame(drawVisualizer);
+    return;
+  }
 
   ctx.fillStyle="#cfe9ff"; ctx.font="20px Sarabun";
   ctx.fillText(modeLabel(mode),24,34);
