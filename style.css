@@ -1548,3 +1548,50 @@ main.wrap{
     height:42px;
   }
 }
+
+
+/* v5.52 mobile graph focus */
+@media (max-width: 760px){
+  .detailPage main > section.activeDetail{
+    padding-top:10px;
+  }
+  .detailPage .detailNav{
+    padding:8px 0 6px;
+  }
+  .detailPage .brand{
+    gap:10px;
+  }
+  .detailPage .brand img{
+    width:36px;
+    height:36px;
+    border-radius:12px;
+  }
+  .detailPage .brand span{
+    font-size:.9rem;
+    line-height:1.2;
+  }
+  .longitudinalFocusPage .vizMediaFrame .vizSingleModeLabel{
+    padding:9px 12px;
+  }
+  .longitudinalFocusPage .vizMediaFrame canvas{
+    aspect-ratio: 1200 / 470;
+  }
+  .longitudinalFocusPage .embeddedPlayerBar{
+    min-height:70px;
+    padding:8px 10px 10px;
+  }
+  .longitudinalFocusPage .embeddedPlayerBar .playerBtn{
+    width:46px;
+    height:46px;
+  }
+  .longitudinalFocusPage .embeddedPlayerBar .playerPrimary{
+    width:56px;
+    height:56px;
+  }
+  .longitudinalFocusPage .explainDetails{
+    margin-top:10px;
+  }
+  .longitudinalFocusPage .explainDetails summary{
+    padding:11px 14px;
+  }
+}

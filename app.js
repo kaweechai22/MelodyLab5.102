@@ -434,8 +434,8 @@ function drawLongitudinalFinal(ctx, c, p, w, h){
   const rows = 4;
   const rowGap = 16;
   const particleRadius = 6.8;
-  const y0 = h * 0.47;
-  const axisY = Math.min(h - 78, y0 + rowGap * 3 + 72);
+  const y0 = h * 0.42;
+  const axisY = y0 + rowGap * 3 + 24;
   const xMin = pad + 32;
   const xMax = w - pad - 54;
 
@@ -459,7 +459,7 @@ function drawLongitudinalFinal(ctx, c, p, w, h){
     g.addColorStop(.5,col);
     g.addColorStop(1,"rgba(0,0,0,0)");
     ctx.fillStyle=g;
-    ctx.fillRect(bx-58,118,116,255);
+    ctx.fillRect(bx-58,108,116,Math.max(130, axisY - 74));
   });
 
   // Title label on canvas
@@ -494,14 +494,14 @@ function drawLongitudinalFinal(ctx, c, p, w, h){
   ctx.setLineDash([8,8]);
   ctx.lineWidth=2;
   ctx.beginPath();
-  ctx.moveTo(eqX, y0 - 78);
-  ctx.lineTo(eqX, y0 + rowGap*3 + 26);
+  ctx.moveTo(eqX, y0 - 70);
+  ctx.lineTo(eqX, y0 + rowGap*3 + 16);
   ctx.stroke();
   ctx.setLineDash([]);
   ctx.fillStyle="rgba(255,255,255,.95)";
   ctx.textAlign="center";
   ctx.font="16px Sarabun, system-ui, sans-serif";
-  ctx.fillText("ตำแหน่งสมดุล", eqX, y0 - 78);
+  ctx.fillText("ตำแหน่งสมดุล", eqX, y0 - 70);
   ctx.restore();
 
 

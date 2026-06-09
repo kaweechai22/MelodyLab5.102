@@ -336,3 +336,9 @@
 - CSV export name now uses the topic name: Longitudinal_Wave_Data.csv
 - PNG export name now uses the topic name: Longitudinal_Wave.png
 - Local export page key changed from Wave_Visualizer to Longitudinal_Wave
+
+
+## v5.51 Longitudinal Graph Tight
+- Reduced bottom empty space under x-axis in the longitudinal graph
+- Moved x-axis closer to the particle field for a more balanced composition
+- Tightened the visual focus on the main graph area
