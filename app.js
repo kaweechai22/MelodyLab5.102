@@ -314,91 +314,191 @@ function drawRebuiltTopic(ctx,c,p,w,h,mode){
     ctx.fillText(`s เริ่มได้ยิน Echo ≈ ${minEchoDistance.toFixed(1)} m`, sx+sw/2, bottomY+54);
     ctx.restore();
   } else if(mode==="soundRefraction"){
-    const dT=vNum("vizTempDiff",15), angle=vNum("vizAngle",25);
+    const tempTop=vNum("vizTempTop",30), tempBottom=vNum("vizTempBottom",10), angle=vNum("vizAngle",25);
     const profile=vSel("vizRefractionMode","layer");
-    const hotSide=vSel("vizHotSide","top");
-    const warmTop = hotSide === "top";
-    const Tcold = 20 - dT/2;
-    const Twarm = 20 + dT/2;
-    const vcold = 331 + 0.6*Tcold;
-    const vwarm = 331 + 0.6*Twarm;
-    const bendSign = warmTop ? 1 : -1; // sound bends toward colder/slower side
-    const bend = dT * 2.15;
-    vText("vizTempDiffLabel",dT.toFixed(0)+" °C");
-    vText("vizAngleLabel",angle.toFixed(0)+"°");
+    const vTop = 331 + 0.6*tempTop;
+    const vBottom = 331 + 0.6*tempBottom;
+    const topHotter = tempTop > tempBottom;
+    const bottomHotter = tempBottom > tempTop;
+    const theta1 = angle*Math.PI/180;
+    const v1 = vTop;       // source is in the upper layer, as in the reference sketch
+    const v2 = vBottom;    // refracted ray enters the lower layer
+    const ratio = (v2/v1)*Math.sin(theta1);
+    const totalInternal = ratio >= 1;
+    const theta2 = Math.asin(lim(ratio, -0.999, 0.999));
+    const theta1Deg = theta1*180/Math.PI;
+    const theta2Deg = theta2*180/Math.PI;
+    const thetaCompare = Math.abs(theta2Deg-theta1Deg) < 0.15 ? "θ₂ ≈ θ₁" : (theta2Deg < theta1Deg ? "θ₂ < θ₁" : "θ₂ > θ₁");
+    const vCompare = Math.abs(vTop-vBottom) < 0.15 ? "v₁ ≈ v₂" : (vTop > vBottom ? "v₁ > v₂" : "v₁ < v₂");
+    const relationLabel = topHotter ? "บนสูงกว่า" : bottomHotter ? "ล่างสูงกว่า" : "เท่ากัน";
+
+    vText("vizTempTopLabel",tempTop.toFixed(0)+" °C");
+    vText("vizTempBottomLabel",tempBottom.toFixed(0)+" °C");
+    vText("vizTempRelationLabel",relationLabel);
+    vText("vizAngleLabel",theta1Deg.toFixed(0)+"°");
     vText("vizRefractionModeLabel",profile==="gradient"?"เกรเดียน":"แบ่งชั้น");
-    vText("vizHotSideLabel",warmTop?"อุ่นด้านบน":"อุ่นด้านล่าง");
 
     panel=corePanel(ctx,w,h,"Sound Refraction (การหักเหของเสียง)");
     cx=w/2; cy=panel.y+panel.h*.50;
     const xL=panel.x+20, xR=panel.x+panel.w-40, top=panel.y+20, bottom=panel.y+panel.h-28;
-    const warmCol="rgba(255,135,50,.18)", coldCol="rgba(34,211,238,.16)";
+    const boundaryY = cy;
 
+    // Background temperature field
+    const colorForTemp = (T, alpha=.16) => {
+      const t = lim((T-0)/45,0,1);
+      const r=Math.round(34 + t*221), g=Math.round(211 - t*76), b=Math.round(238 - t*188);
+      return `rgba(${r},${g},${b},${alpha})`;
+    };
     if(profile==="gradient"){
-      // Gradual temperature transition: draw many layers so students connect normal refraction to a continuous curve.
-      const bands=16;
+      const bands=18;
       for(let i=0;i<bands;i++){
+        const frac=i/(bands-1);
+        const T = tempTop + (tempBottom-tempTop)*frac;
         const y=top+i*(bottom-top)/bands;
         const hBand=(bottom-top)/bands+1;
-        const frac=i/(bands-1);
-        const warmAmount = warmTop ? (1-frac) : frac;
-        const r=Math.round(34 + warmAmount*221);
-        const g=Math.round(211 - warmAmount*76);
-        const b=Math.round(238 - warmAmount*188);
-        ctx.fillStyle=`rgba(${r},${g},${b},.135)`;
+        ctx.fillStyle=colorForTemp(T,.14);
         ctx.fillRect(xL,y,xR-xL,hBand);
       }
-      ctx.strokeStyle="rgba(255,255,255,.16)";
+      ctx.strokeStyle="rgba(255,255,255,.14)";
       ctx.lineWidth=1;
       for(let i=1;i<bands;i++){
         const y=top+i*(bottom-top)/bands;
         ctx.beginPath(); ctx.moveTo(xL,y); ctx.lineTo(xR,y); ctx.stroke();
       }
     }else{
-      ctx.fillStyle=warmTop?warmCol:coldCol; ctx.fillRect(xL,top,xR-xL,cy-top);
-      ctx.fillStyle=warmTop?coldCol:warmCol; ctx.fillRect(xL,cy,xR-xL,bottom-cy);
-      ctx.strokeStyle="rgba(255,255,255,.45)"; ctx.setLineDash([8,8]); ctx.lineWidth=2;
-      ctx.beginPath(); ctx.moveTo(panel.x+30,cy); ctx.lineTo(panel.x+panel.w-30,cy); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle=colorForTemp(tempTop,.17); ctx.fillRect(xL,top,xR-xL,boundaryY-top);
+      ctx.fillStyle=colorForTemp(tempBottom,.17); ctx.fillRect(xL,boundaryY,xR-xL,bottom-boundaryY);
+      ctx.strokeStyle="rgba(255,255,255,.45)";
+      ctx.setLineDash([8,8]);
+      ctx.lineWidth=2;
+      ctx.beginPath(); ctx.moveTo(panel.x+30,boundaryY); ctx.lineTo(panel.x+panel.w-30,boundaryY); ctx.stroke();
+      ctx.setLineDash([]);
     }
 
-    const sx=panel.x+112, sy=warmTop ? cy-118 : cy+118;
-    const hitX=cx, hitY=cy;
-    const outX=cx+285, outY=cy + bendSign*(50 + bend);
+    // Reference-style geometry: speaker in upper-left, ray crosses horizontal boundary.
+    const sx=panel.x+98, sy=boundaryY-132;
+    const startX=sx+58, startY=sy+15;
+    const hitX=cx-18, hitY=boundaryY;
+    const normalX = hitX;
+    const incomingLen = Math.max(180, (hitY-startY)/Math.max(0.2,Math.cos(theta1)));
+    const adjustedStartX = hitX - incomingLen*Math.sin(theta1);
     drawSpeaker(ctx,sx,sy,.82);
 
+    // Draw incident ray and refracted ray/curve
     ctx.save();
-    ctx.strokeStyle="rgba(255,92,171,.95)"; ctx.lineWidth=4; ctx.lineCap="round"; ctx.lineJoin="round";
+    ctx.strokeStyle="rgba(255,92,171,.96)";
+    ctx.lineWidth=4;
+    ctx.lineCap="round";
+    ctx.lineJoin="round";
     ctx.beginPath();
     if(profile==="gradient"){
-      const mid1X=sx+145, mid1Y=sy + bendSign*(10+dT*.6);
-      const mid2X=cx+80, mid2Y=cy + bendSign*(28+dT*1.15);
-      ctx.moveTo(sx+58,sy+15);
-      ctx.bezierCurveTo(mid1X,mid1Y,mid2X,mid2Y,outX,outY);
+      const towardLow = tempBottom < tempTop ? 1 : tempBottom > tempTop ? -1 : 0; // + curve downward if lower layer is slower/cooler
+      const endX=hitX+300;
+      const endY=hitY + (towardLow===0 ? 80 : towardLow*(74 + Math.abs(tempTop-tempBottom)*2.0));
+      const mid1X=adjustedStartX+155, mid1Y=startY + 35;
+      const mid2X=hitX+92, mid2Y=hitY + (towardLow===0 ? 42 : towardLow*(34 + Math.abs(tempTop-tempBottom)*1.1));
+      ctx.moveTo(adjustedStartX,startY);
+      ctx.bezierCurveTo(mid1X,mid1Y,mid2X,mid2Y,endX,endY);
+      ctx.stroke();
+      coreArrow(ctx,endX-62,endY-(towardLow||1)*22,endX,endY,"#ff5cab",4);
     }else{
-      ctx.moveTo(sx+58,sy+15);
+      const outLen=300;
+      let outX, outY;
+      if(totalInternal){
+        outX = hitX + outLen*Math.sin(theta1);
+        outY = hitY - outLen*Math.cos(theta1);
+      }else{
+        outX = hitX + outLen*Math.sin(theta2);
+        outY = hitY + outLen*Math.cos(theta2);
+      }
+      ctx.moveTo(adjustedStartX,startY);
       ctx.lineTo(hitX,hitY);
       ctx.lineTo(outX,outY);
+      ctx.stroke();
+      coreArrow(ctx,outX-66,outY-22,outX,outY,"#ff5cab",4);
     }
-    ctx.stroke();
     ctx.restore();
 
-    coreArrow(ctx,outX-66,outY-bendSign*22,outX,outY,"#ff5cab",4);
+    // Animated sound dot
     if(vizState.running){
       const u=(time*.06)%1;
-      const px=sx+58+(outX-sx-58)*u;
-      const py=sy+15+(outY-sy-15)*u + (profile==="gradient"? bendSign*Math.sin(u*Math.PI)*dT*.65 : 0);
-      coreDot(ctx,px,py,6,"#ff5cab");
+      if(profile==="gradient"){
+        const towardLow = tempBottom < tempTop ? 1 : tempBottom > tempTop ? -1 : 0;
+        const px=adjustedStartX+(hitX+300-adjustedStartX)*u;
+        const py=startY+(hitY-startY)*u + (towardLow===0?0:towardLow*Math.sin(u*Math.PI)*(36+Math.abs(tempTop-tempBottom)*1.1));
+        coreDot(ctx,px,py,6,"#ff5cab");
+      }else{
+        const outLen=300;
+        const outTheta = totalInternal ? -theta1 : theta2;
+        const outX = hitX + outLen*Math.sin(Math.abs(outTheta));
+        const outY = hitY + (totalInternal?-1:1)*outLen*Math.cos(Math.abs(outTheta));
+        const px = u<.5 ? adjustedStartX+(hitX-adjustedStartX)*(u/.5) : hitX+(outX-hitX)*((u-.5)/.5);
+        const py = u<.5 ? startY+(hitY-startY)*(u/.5) : hitY+(outY-hitY)*((u-.5)/.5);
+        coreDot(ctx,px,py,6,"#ff5cab");
+      }
     }
 
-    ctx.fillStyle="#e8f5ff"; ctx.font="bold 15px Sarabun, system-ui"; ctx.textAlign="left";
-    const topLabel=warmTop?`อุณหภูมิอากาศสูงกว่า: v ≈ ${vwarm.toFixed(1)} m/s`:`อุณหภูมิอากาศต่ำกว่า: v ≈ ${vcold.toFixed(1)} m/s`;
-    const botLabel=warmTop?`อุณหภูมิอากาศต่ำกว่า: v ≈ ${vcold.toFixed(1)} m/s`:`อุณหภูมิอากาศสูงกว่า: v ≈ ${vwarm.toFixed(1)} m/s`;
-    ctx.fillText(topLabel,cx+120,panel.y+70);
-    ctx.fillText(botLabel,cx+120,panel.y+panel.h-82);
-    ctx.font="12px Sarabun, system-ui"; ctx.fillStyle="rgba(232,245,255,.78)";
-    ctx.fillText(profile==="gradient"?"อุณหภูมิอากาศเปลี่ยนต่อเนื่อง → แนวเสียงค่อย ๆ โค้ง":"รอยต่อของชั้นอุณหภูมิอากาศ → แนวเสียงเปลี่ยนทิศชัด",cx+120,panel.y+95);
+    // Normal, angle labels, and relationship card
+    ctx.save();
+    ctx.strokeStyle="rgba(232,245,255,.72)";
+    ctx.setLineDash([7,7]);
+    ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(normalX,boundaryY-112); ctx.lineTo(normalX,boundaryY+112); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle="rgba(232,245,255,.88)";
+    ctx.font="bold 13px Sarabun, system-ui";
+    ctx.textAlign="center";
+    ctx.fillText("Normal",normalX+42,boundaryY-95);
+    ctx.fillText("(เส้นแนวฉาก)",normalX+42,boundaryY-78);
+    ctx.fillStyle="#e8f5ff";
+    ctx.font="bold 18px Sarabun, system-ui";
+    ctx.fillText(`θ₁`,normalX-40,boundaryY-42);
+    if(profile==="layer" && !totalInternal) ctx.fillText(`θ₂`,normalX-38,boundaryY+62);
+    ctx.restore();
 
-    coreMetricCard(ctx,panel.x+38,panel.y+panel.h-100,292,76,"แนวคิดสำคัญ","เบนเข้าหาบริเวณที่มีอุณหภูมิอากาศต่ำกว่า",`ΔT = ${dT.toFixed(0)} °C | ${profile==="gradient"?"เกรเดียน":"แบ่งชั้น"}`,"#ff5cab");
+    // Temperature and velocity labels like the reference sketch.
+    ctx.save();
+    ctx.textAlign="left";
+    ctx.font="bold 15px Sarabun, system-ui";
+    const topName = topHotter ? "Warm Air (อากาศอุ่น)" : bottomHotter ? "Cool Air (อากาศเย็น)" : "Air Layer ด้านบน";
+    const bottomName = bottomHotter ? "Warm Air (อากาศอุ่น)" : topHotter ? "Cool Air (อากาศเย็น)" : "Air Layer ด้านล่าง";
+    ctx.fillStyle=topHotter ? "#ff98a8" : "#39d5ff";
+    ctx.fillText(topName, hitX+118, panel.y+92);
+    ctx.font="13px Sarabun, system-ui";
+    ctx.fillText(`${topHotter?"บริเวณที่มีอุณหภูมิอากาศสูงกว่า":"บริเวณที่มีอุณหภูมิอากาศต่ำกว่า"}`, hitX+118, panel.y+118);
+    ctx.fillText(`v₁ ≈ ${vTop.toFixed(1)} m/s`, hitX+118, panel.y+142);
+
+    ctx.font="bold 15px Sarabun, system-ui";
+    ctx.fillStyle=bottomHotter ? "#ff98a8" : "#39d5ff";
+    ctx.fillText(bottomName, panel.x+70, panel.y+panel.h-148);
+    ctx.font="13px Sarabun, system-ui";
+    ctx.fillText(`${bottomHotter?"บริเวณที่มีอุณหภูมิอากาศสูงกว่า":"บริเวณที่มีอุณหภูมิอากาศต่ำกว่า"}`, panel.x+70, panel.y+panel.h-122);
+    ctx.fillText(`v₂ ≈ ${vBottom.toFixed(1)} m/s`, panel.x+70, panel.y+panel.h-98);
+    ctx.restore();
+
+    // Floating relationship card
+    ctx.save();
+    const cardX=panel.x+panel.w-206, cardY=panel.y+78, cardW=174, cardH=112;
+    ctx.fillStyle="rgba(12,26,53,.80)";
+    ctx.strokeStyle="rgba(96,165,250,.35)";
+    roundRect(ctx,cardX,cardY,cardW,cardH,14); ctx.fill(); ctx.stroke();
+    ctx.textAlign="center";
+    ctx.fillStyle="#ff9ed2";
+    ctx.font="bold 18px Sarabun, system-ui";
+    ctx.fillText(vCompare,cardX+cardW/2,cardY+32);
+    ctx.fillText(profile==="layer" && !totalInternal ? thetaCompare : "มุมเปลี่ยนต่อเนื่อง",cardX+cardW/2,cardY+60);
+    ctx.fillStyle="#dbeafe";
+    ctx.font="12px Sarabun, system-ui";
+    const bendText = tempBottom < tempTop ? "หักเหเข้าหาด้านล่างที่ช้ากว่า" : tempBottom > tempTop ? "หักเหออกจากแนวฉาก" : "ไม่เกิดการหักเหชัดเจน";
+    ctx.fillText(profile==="gradient"?"แนวเสียงค่อย ๆ โค้ง":bendText,cardX+cardW/2,cardY+88);
+    ctx.restore();
+
+    if(profile==="layer"){
+      coreMetricCard(ctx,panel.x+38,panel.y+panel.h-104,310,80,"มุมหักเห",totalInternal?"เกิดการสะท้อนกลับ":`θ₂ ≈ ${theta2Deg.toFixed(1)}°`,`sinθ₁/v₁ = sinθ₂/v₂`,"#9dffcb");
+      coreMetricCard(ctx,panel.x+366,panel.y+panel.h-104,374,80,"แนวคิดสำคัญ","เสียงเบนเข้าหาบริเวณที่ช้ากว่า",`θ₁ = ${theta1Deg.toFixed(0)}° | ${vCompare} | ${thetaCompare}`,"#ff5cab");
+    }else{
+      coreMetricCard(ctx,panel.x+38,panel.y+panel.h-104,704,80,"แนวคิดสำคัญ","อุณหภูมิเปลี่ยนต่อเนื่อง → แนวเสียงค่อย ๆ โค้ง",`เชื่อมโยงจากแบบแบ่งชั้น แต่ไม่มีมุมหักเหค่าเดียว`,"#ff5cab");
+    }
 
   } else if(mode==="soundDiffraction"){
 
@@ -2456,6 +2556,16 @@ function initVisualizer(){
     btn.onclick=()=>setEchoSample(btn.dataset.echoSample || "physics");
   });
   setEchoSample(vizState.echoSample || "physics");
+  if($("vizSwapTempBtn")) $("vizSwapTempBtn").onclick=()=>{
+    const topEl=$("vizTempTop"), bottomEl=$("vizTempBottom");
+    if(topEl && bottomEl){
+      const tmp=topEl.value;
+      topEl.value=bottomEl.value;
+      bottomEl.value=tmp;
+      getVizParams();
+      if(typeof drawVisualizer === "function") drawVisualizer();
+    }
+  };
   if($("reflectSoundBtn")) $("reflectSoundBtn").onclick=playReflectionEchoDemo;
   if($("vizPlayBtn")) $("vizPlayBtn").onclick=()=>{vizState.running=true;updateVizPlayerButtons("play");if(vizState.raf) cancelAnimationFrame(vizState.raf);drawVisualizer();};
   if($("vizPauseBtn")) $("vizPauseBtn").onclick=()=>{vizState.running=false;updateVizPlayerButtons("pause");drawVisualizer();};

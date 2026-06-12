@@ -2571,3 +2571,21 @@ main.wrap{
 
 /* v5.127: Sound Refraction temperature wording polish */
 .longitudinalFocusPage .hotSideRow select{min-width:180px !important;}
+
+
+/* v5.128: Sound Refraction physics aligned labels */
+.longitudinalFocusPage .hotSideRow select{min-width:190px !important;}
+
+/* v5.129: Sound Refraction reference sketch controls */
+.longitudinalFocusPage .tempTopRow .paramIcon,
+.longitudinalFocusPage .tempBottomRow .paramIcon{font-size:.74rem !important;}
+.longitudinalFocusPage .refractionSwapBtn{
+  width:100% !important;
+  min-height:44px !important;
+  justify-content:center !important;
+  border-radius:16px !important;
+  font-weight:800 !important;
+}
+@media(max-width:760px){
+  .longitudinalFocusPage .refractionSwapBtn{grid-area:slider !important;}
+}
